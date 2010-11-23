@@ -86,6 +86,7 @@ import datetime
 import logging
 import os.path
 import re
+import time
 
 from tornado import escape
 
@@ -96,8 +97,9 @@ class Template(object):
     the template from variables with generate().
     """
     def __init__(self, template_string, name="<string>", loader=None,
-                 compress_whitespace=None):
+                 modified=time.time(), compress_whitespace=None):
         self.name = name
+        self.modified = modified
         if compress_whitespace is None:
             compress_whitespace = name.endswith(".html") or \
                 name.endswith(".js")
@@ -166,9 +168,10 @@ class Loader(object):
     {% extends %} and {% include %}. Loader caches all templates after
     they are loaded the first time.
     """
-    def __init__(self, root_directory):
+    def __init__(self, root_directory, reload_modified=False):
         self.root = os.path.abspath(root_directory)
         self.templates = {}
+        self.reload_modified = reload_modified
 
     def reset(self):
         self.templates = {}
@@ -186,11 +189,18 @@ class Loader(object):
 
     def load(self, name, parent_path=None):
         name = self.resolve_path(name, parent_path=parent_path)
-        if name not in self.templates:
-            path = os.path.join(self.root, name)
-            f = open(path, "r")
-            self.templates[name] = Template(f.read(), name=name, loader=self)
-            f.close()
+        path = os.path.join(self.root, name)
+        if name in self.templates:
+            template = self.templates[name]
+            # if reload_modified is set, only return the cached template
+            # if it's the same age as the file
+            if template.modified == os.path.getmtime(path) or \
+                    not self.reload_modified:
+                return template
+        f = open(path, 'r')
+        self.templates[name] = Template(f.read(), name=name, loader=self,
+                modified=os.path.getmtime(path))
+        f.close()
         return self.templates[name]
 
 

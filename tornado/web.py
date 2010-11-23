@@ -496,8 +496,10 @@ class RequestHandler(object):
         if not getattr(RequestHandler, "_templates", None):
             RequestHandler._templates = {}
         if template_path not in RequestHandler._templates:
+            <<<<<<< HEAD
+            rmt = self.application.settings.get("reload_modified_templates")
             loader = self.application.settings.get("template_loader") or\
-              template.Loader(template_path)
+              template.Loader(template_path, reload_modified=rmt)
             RequestHandler._templates[template_path] = loader
         t = RequestHandler._templates[template_path].load(template_name)
         args = dict(
